@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4f0">
+  <meta name="description" content="A local-first, Git-aware handoff for moving coding work between agent sessions without carrying the whole chat log.">
+  <title>Handoff Kit — carry the why forward</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f5f4f0;
+      --white: #fffefa;
+      --ink: #171d1b;
+      --muted: #65706b;
+      --subtle: #8b9690;
+      --line: #e2e4dc;
+      --green: #246653;
+      --green-dark: #164c3d;
+      --green-pale: #e3f0e9;
+      --lavender: #8c7ce0;
+      --lavender-pale: #efedfb;
+      --amber: #c27b2b;
+      --shadow: 0 24px 70px rgba(27, 39, 34, .09);
+      --radius: 22px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+    a { color: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    a:focus-visible { outline: 3px solid var(--lavender); outline-offset: 4px; border-radius: 5px; }
+    .wrap { width: min(1160px, calc(100% - 48px)); margin-inline: auto; }
+    .site-header { height: 76px; display: flex; align-items: center; border-bottom: 1px solid rgba(31, 48, 40, .09); }
+    .nav { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+    .brand { display: inline-flex; align-items: center; gap: 11px; text-decoration: none; font-size: 15px; font-weight: 750; letter-spacing: -.045em; }
+    .brand-mark { width: 31px; height: 31px; display: grid; place-items: center; color: white; background: var(--green); border-radius: 10px; box-shadow: 0 5px 13px rgba(36,102,83,.16); }
+    .brand-mark svg { width: 19px; height: 19px; }
+    .nav-right { display: flex; align-items: center; gap: 27px; }
+    .nav-link { text-decoration: none; color: #52605a; font-size: 12px; font-weight: 600; }
+    .nav-link:hover { color: var(--green); }
+    .preview-tag { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #ddd9ee; background: #f2f0fb; color: #6455a9; padding: 8px 11px; border-radius: 999px; text-transform: uppercase; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+    .preview-tag:before { content: ""; width: 6px; height: 6px; border-radius: 99px; background: var(--lavender); box-shadow: 0 0 0 3px rgba(140,124,224,.14); }
+    .hero { padding: 88px 0 75px; display: grid; grid-template-columns: minmax(0, 1.04fr) minmax(410px, .96fr); gap: 54px; align-items: center; }
+    .eyebrow { color: var(--green); text-transform: uppercase; letter-spacing: .14em; font-size: 10px; font-weight: 800; display: flex; align-items: center; gap: 9px; }
+    .eyebrow:before { content: ""; width: 19px; height: 1px; background: var(--green); }
+    h1 { margin: 20px 0 17px; max-width: 620px; font-size: clamp(46px, 6vw, 72px); line-height: .99; letter-spacing: -.075em; font-weight: 690; }
+    h1 .accent { color: var(--green); }
+    .hero-copy { max-width: 515px; margin: 0; color: #5f6a64; font-size: 16px; line-height: 1.72; letter-spacing: -.015em; }
+    .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 11px; margin-top: 29px; }
+    .button { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 0 17px; border-radius: 10px; text-decoration: none; font-size: 12px; font-weight: 720; transition: transform .15s ease, background .15s ease, box-shadow .15s ease; }
+    .button:hover { transform: translateY(-1px); }
+    .button-primary { background: var(--green); color: white; box-shadow: 0 7px 17px rgba(36,102,83,.18); }
+    .button-primary:hover { background: var(--green-dark); box-shadow: 0 9px 20px rgba(36,102,83,.23); }
+    .button-secondary { color: #34443d; background: rgba(255,255,255,.58); border: 1px solid #dfe2da; }
+    .button-secondary:hover { background: white; }
+    .button svg { width: 14px; height: 14px; }
+    .trust-line { display: flex; flex-wrap: wrap; gap: 8px 17px; margin-top: 24px; color: #65716a; font-size: 10px; font-weight: 620; }
+    .trust-line span { display: inline-flex; align-items: center; gap: 6px; }
+    .trust-line svg { width: 13px; height: 13px; color: var(--green); }
+
+    .hero-art { position: relative; min-width: 0; padding: 21px; }
+    .hero-art:before { position: absolute; content: ""; inset: 4% -3% 0 8%; border-radius: 46% 54% 52% 48% / 44% 43% 57% 56%; background: radial-gradient(circle at 52% 44%, #e8e5fa 0, #efedf9 38%, rgba(239,237,249,0) 72%); z-index: 0; }
+    .flow-orbit { position: absolute; z-index: 0; inset: 9% 0 5% 1%; pointer-events: none; }
+    .capsule { position: relative; z-index: 1; width: 100%; max-width: 470px; margin-left: auto; background: var(--white); border: 1px solid rgba(47,64,56,.12); border-radius: 17px; box-shadow: var(--shadow); overflow: hidden; transform: rotate(-1.1deg); }
+    .capsule-top { min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 0 17px; border-bottom: 1px solid #eceee8; background: rgba(255,255,255,.8); }
+    .file-label { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 10px; color: #43504a; }
+    .file-icon { width: 22px; height: 25px; display: grid; place-items: center; border-radius: 5px; background: var(--green-pale); color: var(--green); font-size: 8px; font-weight: 900; }
+    .draft-pill { display: flex; align-items: center; gap: 6px; color: #68746c; text-transform: uppercase; font-size: 8px; font-weight: 800; letter-spacing: .09em; }
+    .draft-pill:before { content: ""; width: 5px; height: 5px; background: #71a886; border-radius: 50%; }
+    .capsule-body { padding: 20px 21px 19px; }
+    .sample-name { display: flex; align-items: center; gap: 7px; margin-bottom: 15px; color: #77817c; font-size: 9px; font-weight: 650; }
+    .sample-name svg { width: 13px; height: 13px; color: var(--green); }
+    .capsule h2 { margin: 0 0 7px; font-size: 18px; line-height: 1.2; letter-spacing: -.045em; }
+    .repo-line { margin: 0 0 18px; color: #78827d; font: 9px/1.6 var(--mono); }
+    .repo-line b { color: #53625b; font-weight: 600; }
+    .capsule-section { padding: 12px 0; border-top: 1px solid #eef0eb; }
+    .capsule-section h3 { margin: 0 0 6px; color: #8781ba; text-transform: uppercase; letter-spacing: .13em; font-size: 8px; font-weight: 850; }
+    .capsule-section p, .capsule-section li { margin: 0; color: #56625c; font-size: 9px; line-height: 1.55; }
+    .capsule-section ul { margin: 0; padding-left: 14px; }
+    .capsule-section li + li { margin-top: 3px; }
+    .check { color: var(--green); font-family: var(--mono); font-size: 8px; }
+    .not-run { color: var(--amber); font-family: var(--mono); font-size: 8px; }
+    .capsule-bottom { padding: 11px 21px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #f8f8f4; border-top: 1px solid #eceee8; color: #7a857e; font-size: 8px; }
+    .format-tags { display: flex; gap: 5px; }
+    .format-tags span { padding: 4px 6px; border: 1px solid #e1e5dd; border-radius: 5px; background: white; font: 8px var(--mono); color: #56625c; }
+    .float-note { position: absolute; z-index: 2; right: -1px; bottom: 5px; display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #fffefa; border: 1px solid #e6e7df; border-radius: 10px; box-shadow: 0 9px 28px rgba(29,44,37,.08); color: #45544c; font-size: 9px; font-weight: 660; }
+    .float-note svg { color: var(--green); width: 14px; height: 14px; }
+
+    .signal-bar { border-top: 1px solid #e4e5de; border-bottom: 1px solid #e4e5de; background: rgba(255,255,255,.33); }
+    .signal-inner { min-height: 96px; display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+    .signal-copy { max-width: 320px; color: #46534c; font-size: 12px; line-height: 1.55; font-weight: 620; }
+    .signal-copy strong { color: var(--ink); font-weight: 740; }
+    .signal-items { display: flex; align-items: center; gap: 28px; }
+    .signal-item { min-width: 120px; display: flex; align-items: center; gap: 10px; color: #66716b; font-size: 9px; line-height: 1.45; }
+    .signal-icon { width: 29px; height: 29px; display: grid; place-items: center; flex: 0 0 29px; border-radius: 9px; background: white; border: 1px solid #e8e9e3; color: var(--green); }
+    .signal-icon svg { width: 14px; height: 14px; }
+    .signal-item b { display: block; color: #27332d; font-size: 10px; margin-bottom: 2px; }
+
+    .section { padding: 91px 0; }
+    .section-head { max-width: 640px; margin-bottom: 34px; }
+    .section-kicker { margin: 0 0 12px; color: var(--green); text-transform: uppercase; letter-spacing: .13em; font-size: 9px; font-weight: 850; }
+    .section h2 { margin: 0; font-size: clamp(31px, 4vw, 44px); line-height: 1.1; letter-spacing: -.065em; font-weight: 680; }
+    .section-head > p:last-child { margin: 13px 0 0; max-width: 570px; color: var(--muted); font-size: 13px; line-height: 1.7; }
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; }
+    .step-card { padding: 21px 21px 23px; min-height: 194px; border: 1px solid #e1e3dc; border-radius: 15px; background: rgba(255,255,255,.57); }
+    .step-num { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; background: var(--green-pale); color: var(--green); font: 9px var(--mono); }
+    .step-card h3 { margin: 24px 0 7px; font-size: 14px; letter-spacing: -.025em; }
+    .step-card p { max-width: 310px; margin: 0; color: #69746e; font-size: 11px; line-height: 1.65; }
+    .step-card code { font: 9px var(--mono); color: #5b4c9d; background: var(--lavender-pale); border-radius: 4px; padding: 2px 4px; }
+
+    .feature-band { background: #1d2d27; color: white; }
+    .feature-inner { padding: 78px 0; display: grid; grid-template-columns: .86fr 1.14fr; gap: 60px; align-items: start; }
+    .feature-intro .section-kicker { color: #9fd2b3; }
+    .feature-intro h2 { margin: 0; max-width: 400px; font-size: clamp(32px, 4vw, 43px); line-height: 1.08; letter-spacing: -.065em; }
+    .feature-intro p { max-width: 390px; margin: 15px 0 0; color: #bdc9c2; font-size: 12px; line-height: 1.7; }
+    .feature-list { display: grid; gap: 0; }
+    .feature-row { padding: 19px 0; display: grid; grid-template-columns: 35px 1fr; gap: 14px; border-bottom: 1px solid rgba(255,255,255,.13); }
+    .feature-row:first-child { padding-top: 0; }
+    .feature-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .feature-number { color: #9fd2b3; font: 10px var(--mono); padding-top: 3px; }
+    .feature-row h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: -.02em; }
+    .feature-row p { margin: 0; color: #b9c5be; font-size: 10px; line-height: 1.65; }
+    .feature-row code { font: 9px var(--mono); color: #d2caff; }
+
+    .privacy-section { display: grid; grid-template-columns: 1fr .86fr; gap: 70px; align-items: center; }
+    .privacy-copy { max-width: 545px; }
+    .privacy-copy .section-head { margin-bottom: 0; }
+    .privacy-copy .section-head > p:last-child { max-width: 520px; }
+    .privacy-list { display: grid; gap: 11px; margin-top: 22px; }
+    .privacy-point { display: flex; gap: 11px; align-items: flex-start; color: #536159; font-size: 10px; line-height: 1.55; }
+    .privacy-point svg { width: 15px; height: 15px; flex: 0 0 15px; margin-top: 1px; color: var(--green); }
+    .privacy-point b { color: #27342d; }
+    .privacy-card { padding: 23px; background: #eeeee7; border: 1px solid #e1e2da; border-radius: 16px; }
+    .privacy-card-head { display: flex; align-items: center; gap: 9px; color: #26352d; font-size: 11px; font-weight: 740; }
+    .privacy-card-head svg { width: 17px; height: 17px; color: var(--green); }
+    .privacy-card p { margin: 11px 0 15px; color: #6b756e; font-size: 10px; line-height: 1.6; }
+    .privacy-card code { display: block; padding: 12px; border-radius: 9px; background: #202b25; color: #d6e5db; font: 9px/1.7 var(--mono); overflow-wrap: anywhere; }
+    .privacy-card .warning { margin: 12px 0 0; padding-left: 9px; border-left: 2px solid #d6a765; color: #75684e; font-size: 9px; }
+
+    .research-section { padding: 70px 0 78px; border-top: 1px solid #e2e4dc; background: rgba(255,255,255,.35); }
+    .research-layout { display: grid; grid-template-columns: .77fr 1.23fr; gap: 50px; align-items: start; }
+    .research-layout h2 { margin: 0; font-size: 23px; letter-spacing: -.055em; }
+    .research-layout .intro { margin: 11px 0 0; max-width: 320px; color: #69746e; font-size: 10px; line-height: 1.65; }
+    .source-list { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .source-link { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 11px; padding: 12px 13px; border: 1px solid #e3e5de; border-radius: 10px; background: rgba(255,255,255,.72); text-decoration: none; transition: border .15s ease, transform .15s ease; }
+    .source-link:hover { border-color: #c5d4c9; transform: translateY(-1px); }
+    .source-link b { display: block; color: #2b3931; font-size: 9px; margin-bottom: 4px; }
+    .source-link span { display: block; color: #7a857e; font-size: 8px; }
+    .source-link svg { width: 13px; height: 13px; flex: 0 0 13px; color: #78847c; }
+    .research-note { grid-column: 1 / -1; margin: 1px 0 0; color: #849088; font-size: 8px; line-height: 1.55; }
+
+    .closing { padding: 70px 0; background: #e8eee8; border-top: 1px solid #dce5dd; }
+    .closing-inner { display: flex; align-items: center; justify-content: space-between; gap: 30px; }
+    .closing h2 { max-width: 550px; margin: 0; font-size: clamp(28px, 3vw, 38px); line-height: 1.1; letter-spacing: -.06em; }
+    .closing p { margin: 10px 0 0; color: #68746d; font-size: 11px; line-height: 1.65; }
+    .closing-actions { display: flex; flex-wrap: wrap; gap: 9px; flex: 0 0 auto; }
+    .site-footer { padding: 22px 0 26px; background: #e8eee8; }
+    .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 18px; border-top: 1px solid #d7dfd8; padding-top: 17px; color: #7a857e; font-size: 8px; line-height: 1.6; }
+    .footer-brand { display: flex; align-items: center; gap: 7px; color: #3c4b42; font-weight: 750; }
+    .footer-brand .brand-mark { width: 21px; height: 21px; border-radius: 7px; box-shadow: none; }
+    .footer-brand .brand-mark svg { width: 13px; height: 13px; }
+    .footer-note { max-width: 600px; text-align: right; }
+
+    @media (max-width: 960px) {
+      .hero { grid-template-columns: minmax(0, 1fr) minmax(350px, .9fr); gap: 24px; padding-top: 72px; }
+      .hero-art { padding: 14px 0; }
+      .float-note { right: -5px; }
+      .signal-inner { align-items: flex-start; flex-direction: column; padding-block: 20px; gap: 15px; }
+      .signal-items { width: 100%; justify-content: space-between; gap: 10px; }
+      .feature-inner { gap: 38px; }
+      .privacy-section { gap: 38px; }
+    }
+    @media (max-width: 720px) {
+      .wrap { width: min(100% - 34px, 540px); }
+      .site-header { height: 64px; }
+      .nav-right { gap: 11px; }
+      .nav-link { display: none; }
+      .preview-tag { font-size: 8px; padding: 7px 9px; }
+      .hero { display: flex; flex-direction: column; align-items: stretch; gap: 27px; padding: 57px 0 47px; }
+      h1 { max-width: 540px; font-size: clamp(43px, 12vw, 62px); margin-top: 16px; }
+      .hero-copy { font-size: 14px; line-height: 1.65; }
+      .hero-art { width: min(100%, 510px); margin-inline: auto; padding: 9px 0 22px; }
+      .capsule { transform: rotate(-.5deg); }
+      .float-note { right: 0; bottom: 3px; }
+      .signal-inner { gap: 12px; }
+      .signal-items { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .signal-item { min-width: 0; }
+      .section { padding: 65px 0; }
+      .steps { grid-template-columns: 1fr; gap: 9px; }
+      .step-card { min-height: auto; padding: 17px; }
+      .step-card h3 { margin-top: 15px; }
+      .feature-inner { grid-template-columns: 1fr; gap: 28px; padding: 61px 0; }
+      .feature-intro h2 { max-width: 490px; }
+      .privacy-section { grid-template-columns: 1fr; gap: 28px; }
+      .privacy-card { max-width: 510px; }
+      .research-section { padding: 55px 0 60px; }
+      .research-layout { grid-template-columns: 1fr; gap: 23px; }
+      .source-list { gap: 7px; }
+      .closing { padding: 54px 0; }
+      .closing-inner { display: block; }
+      .closing-actions { margin-top: 22px; }
+      .footer-inner { align-items: flex-start; flex-direction: column; }
+      .footer-note { text-align: left; }
+    }
+    @media (max-width: 390px) {
+      .wrap { width: calc(100% - 28px); }
+      .brand { font-size: 14px; }
+      .preview-tag { letter-spacing: .06em; }
+      .hero-actions .button { flex: 1; padding-inline: 10px; font-size: 10px; }
+      .source-list { grid-template-columns: 1fr; }
+      .capsule-body { padding: 16px; }
+      .capsule-bottom { padding-inline: 16px; }
+      .capsule-top { padding-inline: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav wrap" aria-label="Main navigation">
+      <a class="brand" href="#top" aria-label="Handoff Kit home">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6 5v5a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v3M6 5v14M6 9a3 3 0 0 0 3 3m9-4v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="6" cy="4" r="1.4" fill="currentColor"/><circle cx="6" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="7" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/></svg></span>
+        Handoff Kit
+      </a>
+      <div class="nav-right">
+        <a class="nav-link" href="#how">How it works</a>
+        <a class="nav-link" href="#privacy">Privacy</a>
+        <a class="nav-link" href="https://github.com/saurabhkumarozp61-cmd/agent-handoff-kit">Source</a>
+        <span class="preview-tag">Public prototype</span>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy-col">
+        <div class="eyebrow">A small handoff for coding-agent work</div>
+        <h1 id="hero-title">The next session shouldn't have to <span class="accent">guess.</span></h1>
+        <p class="hero-copy">Carry the goal, decisions, checks, blockers, and next action forward—alongside a Git snapshot. No chat transcript. No hosted memory. Just a handoff you can review.</p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="./demo/">Try the browser demo <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h9m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="button button-secondary" href="#how">See how it works</a>
+        </div>
+        <div class="trust-line" aria-label="Prototype properties">
+          <span><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.8 13 4v3.4c0 3.1-2.1 5.5-5 6.8-2.9-1.3-5-3.7-5-6.8V4l5-2.2Z" stroke="currentColor" stroke-width="1.4"/><path d="m5.7 7.7 1.5 1.5 3.2-3.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Local-first</span>
+          <span><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 3.2h11v9.6h-11zM5 6h6M5 8.5h4M5 11h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Markdown + JSON</span>
+          <span><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 3v10m0-7h5a3 3 0 0 1 3 3v4m0-9v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="3" cy="2.5" r="1.3" fill="currentColor"/><circle cx="11" cy="13.5" r="1.3" fill="currentColor"/><circle cx="11" cy="5.5" r="1.3" fill="currentColor"/></svg>Git-aware</span>
+        </div>
+      </div>
+
+      <div class="hero-art" aria-label="Sample handoff capsule preview">
+        <svg class="flow-orbit" viewBox="0 0 500 440" fill="none" aria-hidden="true">
+          <path d="M71 64v53a32 32 0 0 0 32 32h36a32 32 0 0 1 32 32v41M71 64v274M71 240a32 32 0 0 0 32 32h15m112-201v35a32 32 0 0 0 32 32h62a32 32 0 0 1 32 32v34m0 0v103m0-103h55a30 30 0 0 0 30-30v-21" stroke="#b7addf" stroke-width="1.4" stroke-dasharray="4 7" stroke-linecap="round" opacity=".65"/>
+          <circle cx="71" cy="62" r="5" fill="#8c7ce0"/><circle cx="71" cy="338" r="5" fill="#78ae8c"/><circle cx="283" cy="69" r="5" fill="#8c7ce0"/><circle cx="344" cy="337" r="5" fill="#78ae8c"/><circle cx="403" cy="190" r="5" fill="#8c7ce0"/>
+        </svg>
+        <article class="capsule">
+          <div class="capsule-top">
+            <div class="file-label"><span class="file-icon">MD</span>handoff.md</div>
+            <div class="draft-pill">Local draft</div>
+          </div>
+          <div class="capsule-body">
+            <div class="sample-name"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 3v10m0-7h5a3 3 0 0 1 3 3v4m0-9v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="3" cy="2.5" r="1.3" fill="currentColor"/><circle cx="11" cy="5.5" r="1.3" fill="currentColor"/><circle cx="11" cy="13.5" r="1.3" fill="currentColor"/></svg>Sample project · webhook-service</div>
+            <h2>Make retries idempotent</h2>
+            <p class="repo-line"><b>branch</b> feature/retry-safe-delivery &nbsp;·&nbsp; <b>commit</b> b6a10ef</p>
+            <div class="capsule-section">
+              <h3>Goal</h3>
+              <p>A repeated event creates at most one delivery record.</p>
+            </div>
+            <div class="capsule-section">
+              <h3>Decision</h3>
+              <p>Use the provider event ID as the idempotency key.</p>
+            </div>
+            <div class="capsule-section">
+              <h3>Verification</h3>
+              <ul><li><span class="check">PASS</span> · focused retry tests · 19 passed</li><li><span class="not-run">NOT RUN</span> · legacy payload fixture</li></ul>
+            </div>
+            <div class="capsule-section">
+              <h3>Next</h3>
+              <p>Add the legacy-payload fixture, then run the full webhook suite.</p>
+            </div>
+          </div>
+          <div class="capsule-bottom"><span>Git snapshot · 3 changed paths</span><span class="format-tags"><span>.md</span><span>.json</span></span></div>
+        </article>
+        <div class="float-note"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3L13 4.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Inspect before you share</div>
+      </div>
+    </section>
+
+    <section class="signal-bar" aria-label="Handoff details">
+      <div class="signal-inner wrap">
+        <div class="signal-copy"><strong>A diff records changes.</strong> A handoff can record what to do next—and why.</div>
+        <div class="signal-items">
+          <div class="signal-item"><span class="signal-icon"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 3h10v10H3zM5.5 6h5M5.5 8.5h3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span><span><b>Intent</b>Goal & decisions</span></div>
+          <div class="signal-item"><span class="signal-icon"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4h11M4 2.5v3M12 2.5v3M3 6.5h10v7H3zM5.5 9.5h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span><b>Evidence</b>Checks & blockers</span></div>
+          <div class="signal-item"><span class="signal-icon"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 3v10m0-7h5a3 3 0 0 1 3 3v4m0-9v2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="3" cy="2.5" r="1.2" fill="currentColor"/><circle cx="11" cy="5.5" r="1.2" fill="currentColor"/><circle cx="11" cy="13.5" r="1.2" fill="currentColor"/></svg></span><span><b>Repository</b>Branch & snapshot</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap" id="how" aria-labelledby="how-title">
+      <div class="section-head">
+        <p class="section-kicker">A reviewable handoff, in three steps</p>
+        <h2 id="how-title">Only carry what the next session needs.</h2>
+        <p>Keep the summary small and explicit. Handoff Kit gives the next person or coding agent a portable starting point without trying to become an all-knowing memory system.</p>
+      </div>
+      <div class="steps">
+        <article class="step-card"><span class="step-num">01</span><h3>Write down the why</h3><p>Capture the task, current state, decisions, verification, open questions, and the next concrete actions.</p></article>
+        <article class="step-card"><span class="step-num">02</span><h3>Attach what Git knows</h3><p>Capture branch, commit, and changed file paths. Check later whether that snapshot still matches the checkout.</p></article>
+        <article class="step-card"><span class="step-num">03</span><h3>Export a plain file</h3><p>Use <code>Markdown</code> for people and agents, or <code>JSON</code> for scripts. Review the contents before sharing.</p></article>
+      </div>
+    </section>
+
+    <section class="feature-band" aria-labelledby="feature-title">
+      <div class="feature-inner wrap">
+        <div class="feature-intro">
+          <p class="section-kicker">Built to stay small</p>
+          <h2 id="feature-title">A handoff file, not another memory silo.</h2>
+          <p>When work moves between tools, plain formats keep the handoff inspectable and easy to edit. The Git check adds a useful nudge when the saved snapshot has drifted.</p>
+        </div>
+        <div class="feature-list">
+          <article class="feature-row"><span class="feature-number">01</span><div><h3>Human-owned context</h3><p>You write the summary and choose what belongs in it. There is no automatic transcript capture or model-generated account of the work.</p></div></article>
+          <article class="feature-row"><span class="feature-number">02</span><div><h3>Repository state alongside intent</h3><p>Keep branch, commit, and changed-path metadata with the handoff. A CLI can flag when those saved values no longer match the current checkout.</p></div></article>
+          <article class="feature-row"><span class="feature-number">03</span><div><h3>Open, portable formats</h3><p>Export ordinary <code>.md</code> and <code>.json</code> files. No vendor-specific memory format or hosted sync is part of this prototype.</p></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap privacy-section" id="privacy" aria-labelledby="privacy-title">
+      <div class="privacy-copy">
+        <div class="section-head">
+          <p class="section-kicker">Your repo stays yours</p>
+          <h2 id="privacy-title">Small by design. Review before sharing.</h2>
+          <p>The capture utility reads Git metadata—not source-file contents. The handoff remains a local file you can inspect and edit before it leaves your machine.</p>
+        </div>
+        <div class="privacy-list">
+          <div class="privacy-point"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3L13 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>No chat logs, environment variables, or terminal history</b> are collected by the prototype.</span></div>
+          <div class="privacy-point"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3L13 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>No account, model call, or hosted memory service</b> is required.</span></div>
+          <div class="privacy-point"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3 8.5 3.2 3L13 4.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span><b>File paths and commit subjects can still reveal project details.</b> Check exports before sharing.</span></div>
+        </div>
+      </div>
+      <aside class="privacy-card" aria-label="What the Git snapshot includes">
+        <div class="privacy-card-head"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 3v10m0-7h5a3 3 0 0 1 3 3v4m0-9v2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="3" cy="2.5" r="1.2" fill="currentColor"/><circle cx="11" cy="5.5" r="1.2" fill="currentColor"/><circle cx="11" cy="13.5" r="1.2" fill="currentColor"/></svg>Git snapshot includes</div>
+        <p>Enough repository context to orient the handoff—without reading your source files.</p>
+        <code>repository · branch · short commit<br>changed file paths · diff summary<br>recent commit subjects</code>
+        <p class="warning">Paths and commit subjects may be sensitive. Review them before sharing the export.</p>
+      </aside>
+    </section>
+
+    <section class="research-section" aria-labelledby="research-title">
+      <div class="research-layout wrap">
+        <div>
+          <p class="section-kicker">The problem signal</p>
+          <h2 id="research-title">Shaped by real developer discussions.</h2>
+          <p class="intro">Public threads describe context being repeated or lost across sessions and tools. These discussions are qualitative signals—not prevalence data, endorsements, or proof of product-market fit.</p>
+        </div>
+        <div class="source-list">
+          <a class="source-link" href="https://github.com/orgs/community/discussions/212396" target="_blank" rel="noopener noreferrer"><span><b>GitHub Community</b><span>Repo-level memory across tools</span></span><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3h7v7M13 3 6 10M11 9v4H3V5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="source-link" href="https://forum.cursor.com/t/how-are-people-handling-context-across-different-ai-coding-tools/159891" target="_blank" rel="noopener noreferrer"><span><b>Cursor Forum</b><span>Context across different coding tools</span></span><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3h7v7M13 3 6 10M11 9v4H3V5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="source-link" href="https://www.reddit.com/r/vibecoding/comments/1v8b4ba/how_do_you_keep_track_of_decisions_between_vibe/" target="_blank" rel="noopener noreferrer"><span><b>Reddit · r/vibecoding</b><span>Remembering decisions between sessions</span></span><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3h7v7M13 3 6 10M11 9v4H3V5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="source-link" href="https://news.ycombinator.com/item?id=49300800" target="_blank" rel="noopener noreferrer"><span><b>Hacker News</b><span>Portable handoffs between sessions</span></span><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 3h7v7M13 3 6 10M11 9v4H3V5h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <p class="research-note">These independent public threads are qualitative examples, not prevalence data, endorsements, or market validation. Handoff Kit only tests portable, human-reviewed handoffs; it does not solve code quality, agent isolation, or automatic session recovery.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing" aria-labelledby="closing-title">
+      <div class="closing-inner wrap">
+        <div>
+          <h2 id="closing-title">Move the task forward. Leave the transcript behind.</h2>
+          <p>Try the browser demo. It runs in your browser; drafts stay in that browser’s local storage and are not sent to an app server.</p>
+        </div>
+        <div class="closing-actions">
+          <a class="button button-primary" href="./demo/">Try the browser demo <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h9m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="button button-secondary" href="https://github.com/saurabhkumarozp61-cmd/agent-handoff-kit">View source on GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner wrap">
+      <div class="footer-brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6 5v5a3 3 0 0 0 3 3h6a3 3 0 0 1 3 3v3M6 5v14M6 9a3 3 0 0 0 3 3m9-4v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="6" cy="4" r="1.4" fill="currentColor"/><circle cx="6" cy="20" r="1.4" fill="currentColor"/><circle cx="18" cy="7" r="1.4" fill="currentColor"/><circle cx="18" cy="20" r="1.4" fill="currentColor"/></svg></span>Handoff Kit</div>
+      <div class="footer-note">Open-source local-first prototype. The static page hosts the demo; handoff drafts stay in your browser’s local storage.</div>
+    </div>
+  </footer>
+</body>
+</html>
