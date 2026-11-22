@@ -28,12 +28,26 @@ def capture_repository(repo: str | Path) -> dict[str, Any]:
     """Return repository metadata only: no diffs, file contents, or environment values."""
     root_text = git(repo, "rev-parse", "--show-toplevel")
     root = Path(root_text)
-    raw_status = git(root, "status", "--porcelain=v1", "--untracked-files=all")
+    raw_status = git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
     changed_files: list[str] = []
-    for line in raw_status.splitlines():
+    entries = raw_status.split("\0")
+    index = 0
+    while index < len(entries):
+        line = entries[index]
+        index += 1
         if len(line) >= 4:
-            # Preserve the porcelain status prefix for an auditor; include the path only.
-            changed_files.append(line[3:].strip())
+            status = line[:2]
+            path = line[3:]
+            if path:
+                changed_files.append(path)
+            # In porcelain -z output, renames/copies use a second NUL-delimited
+            # record for the original path; both paths changed and belong here.
+            if "R" in status or "C" in status:
+                if index < len(entries):
+                    original_path = entries[index]
+                    index += 1
+                    if original_path:
+                        changed_files.append(original_path)
     changed_files = sorted(set(changed_files))
 
     head = git(root, "rev-parse", "--short=12", "HEAD", check=False).strip() or None
@@ -116,6 +130,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         capsule = json.loads(Path(args.capsule).read_text(encoding="utf-8"))
+        if not isinstance(capsule, dict):
+            print("handoff-kit: capsule must be a JSON object.", file=sys.stderr)
+            return 1
         expected = capsule.get("repository")
         if not isinstance(expected, dict):
             print("This file has no repository snapshot. Import a Git snapshot before exporting the capsule.", file=sys.stderr)

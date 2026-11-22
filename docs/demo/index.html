@@ -80,8 +80,17 @@
     function loadSaved(){try{const raw=localStorage.getItem("handoff-kit-v1");return raw?JSON.parse(raw):null}catch{return null}}
     const saved=loadSaved();
     let state=saved&&saved.state?Object.assign(copyObject(demoState),saved.state):copyObject(demoState);
+    function normalizeRepository(rep){
+      if(rep===null)return null;
+      if(typeof rep!=="object"||Array.isArray(rep))throw new Error("Invalid repository snapshot: expected an object or null.");
+      const normalized=copyObject(rep);
+      if(normalized.changed_files===undefined)normalized.changed_files=[];
+      if(!Array.isArray(normalized.changed_files)||!normalized.changed_files.every(path=>typeof path==="string"))throw new Error("Invalid repository snapshot: changed_files must be a list of paths.");
+      return normalized;
+    }
     let repository=saved&&Object.prototype.hasOwnProperty.call(saved,"repository")?saved.repository:copyObject(demoRepository);
     let snapshotLabel=saved&&saved.snapshotLabel?saved.snapshotLabel:"Sample handoff loaded";
+    try{repository=normalizeRepository(repository)}catch{repository=null;snapshotLabel="Saved snapshot was invalid; import a valid Git snapshot."}
     const fieldNodes=[...document.querySelectorAll("[data-field]")];
     const $=id=>document.getElementById(id);
     const cleanLines=value=>(value||"").split("\n").map(line=>line.trim()).filter(Boolean);
@@ -117,13 +126,13 @@
     function toast(message){const box=$("toast");box.textContent=message;box.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>box.classList.remove("show"),2200)}
     function slug(value){return String(value||"handoff").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,48)||"handoff"}
     function download(filename,text,type){const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)}
-    $("copyBtn").addEventListener("click",async()=>{try{await navigator.clipboard.writeText(markdown());toast("Markdown handoff copied.")}catch{toast("Clipboard unavailable here. Use Export instead.")}});
-    $("downloadBtn").addEventListener("click",()=>{download(`${slug(state.taskTitle)}.md`,markdown(),"text/markdown;charset=utf-8");setTimeout(()=>download(`${slug(state.taskTitle)}.json`,JSON.stringify(currentCapsule(),null,2)+"\n","application/json;charset=utf-8"),220);toast("Markdown and JSON exports downloaded.")});
+    $("copyBtn").addEventListener("click",async()=>{let content;try{content=markdown()}catch{toast("Could not prepare the handoff. Check the imported snapshot.");return}try{await navigator.clipboard.writeText(content);toast("Markdown handoff copied.")}catch{toast("Clipboard unavailable here. Use Export instead.")}});
+    $("downloadBtn").addEventListener("click",()=>{try{const md=markdown(),json=JSON.stringify(currentCapsule(),null,2)+"\n";download(`${slug(state.taskTitle)}.md`,md,"text/markdown;charset=utf-8");setTimeout(()=>download(`${slug(state.taskTitle)}.json`,json,"application/json;charset=utf-8"),220);toast("Markdown and JSON exports downloaded.")}catch{toast("Could not prepare exports. Check the imported snapshot.")}});
     $("importBtn").addEventListener("click",()=>$ ("fileInput").click());
-    $("fileInput").addEventListener("change",event=>{const file=event.target.files&&event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const parsed=JSON.parse(String(reader.result));const rep=parsed.repository||parsed.snapshot?.repository||null;if(rep){repository=rep;state.projectName=rep.name||state.projectName;}
-        if(parsed.task){const task=parsed.task;state.taskTitle=task.title||state.taskTitle;state.goal=task.goal||state.goal;state.currentState=task.current_state||state.currentState;state.decisions=Array.isArray(task.decisions)?task.decisions.join("\n"):state.decisions;state.checks=Array.isArray(task.checks)?task.checks.join("\n"):state.checks;state.blockers=Array.isArray(task.blockers)?task.blockers.join("\n"):state.blockers;state.nextSteps=Array.isArray(task.next_steps)?task.next_steps.join("\n"):state.nextSteps;}
+    $("fileInput").addEventListener("change",event=>{const file=event.target.files&&event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const parsed=JSON.parse(String(reader.result));if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("Handoff JSON must be an object.");let rawRepository=null;if(Object.prototype.hasOwnProperty.call(parsed,"repository"))rawRepository=parsed.repository;else if(parsed.snapshot&&Object.prototype.hasOwnProperty.call(parsed.snapshot,"repository"))rawRepository=parsed.snapshot.repository;const rep=normalizeRepository(rawRepository);repository=rep;state.projectName=rep&&rep.name?rep.name:"";
+        if(parsed.task&&typeof parsed.task==="object"&&!Array.isArray(parsed.task)){const task=parsed.task;for(const [source,target] of [["title","taskTitle"],["goal","goal"],["current_state","currentState"]])if(Object.prototype.hasOwnProperty.call(task,source))state[target]=typeof task[source]==="string"?task[source]:String(task[source]??"");state.decisions=Array.isArray(task.decisions)?task.decisions.join("\n"):state.decisions;state.checks=Array.isArray(task.checks)?task.checks.join("\n"):state.checks;state.blockers=Array.isArray(task.blockers)?task.blockers.join("\n"):state.blockers;state.nextSteps=Array.isArray(task.next_steps)?task.next_steps.join("\n"):state.nextSteps;}
         fieldNodes.forEach(node=>node.value=state[node.dataset.field]||"");snapshotLabel=rep?"Git snapshot imported":"Handoff JSON imported";render();toast("Import complete. Review the snapshot before exporting.");
-      }catch{toast("Could not read this JSON. Choose a Handoff Kit export or Git snapshot.")}event.target.value=""};reader.readAsText(file)});
+      }catch(error){const message=error&&error.message||"";toast(message.startsWith("Invalid repository snapshot:")?message:"Could not read this JSON. Choose a Handoff Kit export or Git snapshot.")}event.target.value=""};reader.readAsText(file)});
     $("newBtn").addEventListener("click",()=>{state={projectName:"",taskTitle:"",goal:"",currentState:"",decisions:"",checks:"",blockers:"",nextSteps:""};repository=null;snapshotLabel="New handoff";fieldNodes.forEach(node=>node.value="");render();toast("Blank handoff started.")});
     render();
   </script>

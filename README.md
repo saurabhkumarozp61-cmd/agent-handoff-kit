@@ -46,6 +46,8 @@ Exit code `0` means the saved branch, commit, and changed-file paths match; exit
 
 ## Tests
 
+The test suite uses Python's standard library and Node.js 18+ for the browser import/export regressions; no npm packages are needed.
+
 ```bash
 python3 -m unittest discover -s tests -v
 ```
