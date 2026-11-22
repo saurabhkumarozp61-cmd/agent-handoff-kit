@@ -4,8 +4,8 @@ A small, local-first handoff for coding-agent work. Keep the task goal, decision
 
 **Status:** early prototype. It is deliberately manual: it does not capture chats, generate summaries with a model, sync between devices, or integrate with agent platforms.
 
-- [Try the browser demo](https://saurabhkumarozp61-cmd.github.io/agent-handoff-kit/demo/)
-- [Project website](https://saurabhkumarozp61-cmd.github.io/agent-handoff-kit/)
+- [Try the browser demo](https://lovely-bonbon-1153e6.netlify.app/demo/)
+- [Project website](https://lovely-bonbon-1153e6.netlify.app/)
 
 ## What it does
 
@@ -26,7 +26,7 @@ cd agent-handoff-kit
 python3 -m http.server 4173 --bind 127.0.0.1
 ```
 
-Open <http://127.0.0.1:4173>. The browser demo is also available under `docs/demo/` for GitHub Pages hosting.
+Open <http://127.0.0.1:4173>. The browser demo is also available under `docs/demo/` for static hosting.
 
 ## Capture and check a snapshot
 
