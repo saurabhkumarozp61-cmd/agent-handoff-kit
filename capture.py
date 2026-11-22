@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -11,12 +12,15 @@ from pathlib import Path
 from typing import Any
 
 
-def git(repo: str | Path, *args: str, check: bool = True) -> str:
+def git(
+    repo: str | Path, *args: str, check: bool = True, env: dict[str, str] | None = None
+) -> str:
     result = subprocess.run(
         ["git", "-C", str(repo), *args],
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        env=env,
     )
     if check and result.returncode != 0:
         message = result.stderr.strip() or f"git {' '.join(args)} failed"
@@ -26,7 +30,15 @@ def git(repo: str | Path, *args: str, check: bool = True) -> str:
 
 def capture_repository(repo: str | Path) -> dict[str, Any]:
     """Return repository metadata only: no diffs, file contents, or environment values."""
-    root_text = git(repo, "rev-parse", "--show-toplevel")
+    try:
+        # Use a stable diagnostic for the repository discovery check.
+        root_text = git(repo, "rev-parse", "--show-toplevel", env={**os.environ, "LC_ALL": "C"})
+    except RuntimeError as exc:
+        if str(exc).startswith("fatal: not a git repository ("):
+            raise RuntimeError(
+                "Handoff Kit needs to run inside a Git repository. cd into your project and try again."
+            ) from exc
+        raise
     root = Path(root_text)
     raw_status = git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all")
     changed_files: list[str] = []
@@ -129,7 +141,15 @@ def main(argv: list[str] | None = None) -> int:
             emit(capture_snapshot(args.repo), args.out)
             return 0
 
-        capsule = json.loads(Path(args.capsule).read_text(encoding="utf-8"))
+        try:
+            capsule = json.loads(Path(args.capsule).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            print(
+                f"handoff-kit: Capsule file not found: {args.capsule}. "
+                "Check the --capsule path and try again.",
+                file=sys.stderr,
+            )
+            return 1
         if not isinstance(capsule, dict):
             print("handoff-kit: capsule must be a JSON object.", file=sys.stderr)
             return 1

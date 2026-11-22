@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -79,6 +80,56 @@ class CaptureTests(unittest.TestCase):
         comparison = compare_repositories(saved, current)
         self.assertTrue(comparison["stale"])
         self.assertFalse(next(item for item in comparison["checks"] if item["item"] == "HEAD commit")["matches"])
+
+    def test_cli_explains_how_to_run_inside_a_git_repository(self) -> None:
+        capture_script = Path(__file__).resolve().parents[1] / "capture.py"
+        capsule_path = Path(self.temp.name) / "snapshot.json"
+        capsule_path.write_text(json.dumps(capture_snapshot(self.repo)), encoding="utf-8")
+
+        for args in (["snapshot"], ["check", "--capsule", str(capsule_path)]):
+            with self.subTest(command=args[0]):
+                result = subprocess.run(
+                    [sys.executable, str(capture_script), *args],
+                    cwd=self.temp.name,
+                    text=True,
+                    capture_output=True,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(
+                    result.stderr,
+                    "handoff-kit: Handoff Kit needs to run inside a Git repository. "
+                    "cd into your project and try again.\n",
+                )
+
+    def test_snapshot_keeps_git_error_for_a_missing_repo_path(self) -> None:
+        capture_script = Path(__file__).resolve().parents[1] / "capture.py"
+        missing_repo = self.repo / "missing-repo"
+        result = subprocess.run(
+            [sys.executable, str(capture_script), "snapshot", "--repo", str(missing_repo)],
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(str(missing_repo), result.stderr)
+        self.assertNotIn("Handoff Kit needs to run inside a Git repository", result.stderr)
+
+    def test_check_explains_how_to_fix_a_missing_capsule_path(self) -> None:
+        capture_script = Path(__file__).resolve().parents[1] / "capture.py"
+        missing_capsule = self.repo / "missing-capsule.json"
+        result = subprocess.run(
+            [sys.executable, str(capture_script), "check", "--repo", str(self.repo),
+             "--capsule", str(missing_capsule)],
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertEqual(
+            result.stderr,
+            f"handoff-kit: Capsule file not found: {missing_capsule}. "
+            "Check the --capsule path and try again.\n",
+        )
 
     def test_check_rejects_non_object_capsule_json_cleanly(self) -> None:
         capture_script = Path(__file__).resolve().parents[1] / "capture.py"
